@@ -80,3 +80,20 @@ export const updateWhiteboardRequest = async (id, title, objects) => {
     return false;
   }
 };
+
+export const deleteWhiteboardRequest = async (id) => {
+  let url = `/delete-drawing/${id}`;
+  try {
+    let res = await axiosInstance.get(url);
+    if (res.data.status === "success" && res.data.data.deletedCount > 0) {
+      successToast("Drawing deleted successfully");
+      return true;
+    } else {
+      errorToast("Drawing deletion failed. Please try again");
+      return false;
+    }
+  } catch (error) {
+    errorToast("Something went wrong. Please try again");
+    return [];
+  }
+};

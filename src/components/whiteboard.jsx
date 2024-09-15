@@ -5,6 +5,7 @@ import { FabricJSCanvas, useFabricJSEditor } from "fabricjs-react";
 import { useLoader } from "../context/loaderContext";
 import {
   createWhiteboardRequest,
+  deleteWhiteboardRequest,
   getAllWhiteboardRequest,
   updateWhiteboardRequest,
 } from "../APIRequest/whiteboardApi";
@@ -13,6 +14,7 @@ import {
   exportAsPNG,
   exportAsSVG,
 } from "../utils/exportWhiteboardAsImg/exportWhiteboardAsImg";
+import { randomSweetAlert } from "../utils/sweetAlert/sweetAlert";
 
 const Whiteboard = () => {
   const { showLoader, hideLoader } = useLoader();
@@ -109,6 +111,21 @@ const Whiteboard = () => {
         const updateTotal = prevList.total + 1;
         return { total: updateTotal, rows: updateRows };
       });
+    }
+  };
+
+  // delete canvas from database
+  const handleDeleteCanvas = async () => {
+    if (selectedCanvas?._id) {
+      const confirmResult = await randomSweetAlert(
+        "Are you sure you want to delete this drawing?"
+      );
+      if (confirmResult.isConfirmed) {
+        const result = await deleteWhiteboardRequest(selectedCanvas?._id);
+        if (result) {
+          window.location.reload();
+        }
+      }
     }
   };
 
@@ -219,8 +236,7 @@ const Whiteboard = () => {
 
       if (!selectedCanvas?._id) {
         const newDrawing = await createWhiteboardRequest(title, objects);
-        console.log(newDrawing._id, "new");
-        // Check if new drawing creation was successful and save its _id
+
         if (newDrawing && newDrawing._id) {
           setSelectedCanvas({
             ...selectedCanvas,
@@ -247,7 +263,6 @@ const Whiteboard = () => {
       // Preventing default behavior and saving data
       event.preventDefault();
       saveDrawingData();
-      event.returnValue = "Are you sure you want to leave?";
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -260,8 +275,6 @@ const Whiteboard = () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [editor, selectedCanvas]);
-
-  console.log(listCanvas, "list canvas");
 
   return (
     <div className="container mx-auto py-2">
@@ -276,6 +289,7 @@ const Whiteboard = () => {
               </h1>
               <label>Project Name:</label>{" "}
               <input
+                autoFocus
                 type="text"
                 className="border w-56 px-0.5 mr-2"
                 value={selectedCanvas?.title || ""}
@@ -287,7 +301,10 @@ const Whiteboard = () => {
               >
                 New Project
               </button>
-              <button className="bg-red-500 text-white p-1.5 text-sm rounded-md">
+              <button
+                onClick={handleDeleteCanvas}
+                className="bg-red-500 text-white p-1.5 text-sm rounded-md"
+              >
                 Delete Selected Project
               </button>
             </div>

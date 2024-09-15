@@ -7,7 +7,7 @@ export const exportAsPNG = (canvas) => {
   // Create a link element to trigger download
   const link = document.createElement("a");
   link.href = dataURL;
-  link.download = "canvas.png";
+  link.download = "whiteboard.png";
   link.click();
 };
 
@@ -21,7 +21,7 @@ export const exportAsSVG = (canvas) => {
   // Create a link element to trigger download
   const link = document.createElement("a");
   link.href = url;
-  link.download = "canvas.svg";
+  link.download = "whiteboard.svg";
   link.click();
 
   // Cleanup URL after download

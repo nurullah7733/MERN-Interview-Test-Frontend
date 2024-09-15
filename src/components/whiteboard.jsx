@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axiosInstance from "../../utils/axios/axios";
+import axiosInstance from "../utils/axios/axios";
 import { fabric } from "fabric";
 import { FabricJSCanvas, useFabricJSEditor } from "fabricjs-react";
 
@@ -7,8 +7,6 @@ const Whiteboard = () => {
   const [listCanvas, setListCanvas] = useState([]);
   const [selectedCanvas, setSelectedCanvas] = useState(null);
   const { editor, onReady } = useFabricJSEditor();
-  const [history, setHistory] = useState([]);
-  const [redoStack, setRedoStack] = useState([]);
   const [color, setColor] = useState("#35363a");
 
   const onAddCircle = () => {
@@ -26,40 +24,30 @@ const Whiteboard = () => {
     editor.addLine();
   };
 
-  const undo = () => {
-    if (history.length > 0) {
-      const lastState = history[history.length - 1];
-      setRedoStack([...redoStack, editor.canvas.toJSON()]);
-      setHistory(history.slice(0, -1));
-      editor.canvas.loadFromJSON(lastState, () => {
-        editor.canvas.renderAll();
-      });
-    }
-  };
-
-  const redo = () => {
-    if (redoStack.length > 0) {
-      const redoState = redoStack[redoStack.length - 1];
-      setHistory([...history, editor.canvas.toJSON()]);
-      setRedoStack(redoStack.slice(0, -1));
-      editor.canvas.loadFromJSON(redoState, () => {
-        editor.canvas.renderAll();
-      });
-    }
-  };
-
-  const clear = () => {
-    setHistory([...history, editor.canvas.toJSON()]);
-    setRedoStack([]);
-    editor.canvas.clear();
-  };
-
+  // Remove Selected Object
   const removeSelectedObject = () => {
-    editor.canvas.remove(editor.canvas.getActiveObject());
+    const activeObject = editor.canvas.getActiveObject();
+    if (activeObject) {
+      editor.canvas.remove(activeObject);
+    } else {
+      alert("Please select an object to remove");
+    }
   };
 
-  const onDeleteAll = () => {
+  // Erase All Objects
+  const onEraseAll = () => {
     editor.deleteAll();
+  };
+
+  // Handle Fill Color Change for Selected Object
+  const handleFillColorChange = () => {
+    const activeObject = editor.canvas.getActiveObject(); // Get the selected object
+    if (activeObject) {
+      activeObject.set({ fill: color }); // Update the fill color
+      editor.canvas.renderAll(); // Re-render the canvas
+    } else {
+      alert("Please select an object to fill");
+    }
   };
 
   const exportToJson = () => {
@@ -70,13 +58,12 @@ const Whiteboard = () => {
     }
   };
 
-  // Load the initial last drawing file from database & set the canvas height and width
+  // Load the initial last drawing file from database & set the canvas height
   useEffect(() => {
     if (!editor) {
       return;
     }
-    editor.canvas.setHeight(1200);
-    editor.canvas.setWidth(1200);
+    editor.canvas.setHeight(450);
 
     //  initial data involved in the whiteboard
     editor.canvas.loadFromJSON(selectedCanvas?.objects, () => {
@@ -93,7 +80,7 @@ const Whiteboard = () => {
     editor.setStrokeColor(color);
   }, [color]);
 
-  // mouse wheel & ctrl + mouse move, for zoom etc function
+  // mouse wheel , ctrl + mouse move, for zoom and history save & redo, undo, clear etc function
   useEffect(() => {
     if (!editor || !fabric) {
       return;
@@ -145,8 +132,6 @@ const Whiteboard = () => {
         this.selection = true;
       });
     }
-
-    editor.canvas.renderAll();
   }, [editor]);
 
   // Fetch the list of canvas from the database and set the selected canvas
@@ -166,82 +151,97 @@ const Whiteboard = () => {
 
   return (
     <div className="container mx-auto py-2">
-      <h1 className="text-2xl  font-semibold">Whiteboard App</h1>
-
       <div className="grid grid-cols-12  w-full">
         <div className="col-span-2"></div>
         <div className="col-span-10 flex justify-center py-1">
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={onAddLine}
-          >
-            Add Line
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={onAddText}
-          >
-            Add Text
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={onAddCircle}
-          >
-            Add Circle
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={onAddRectangle}
-          >
-            Add Rectangle
-          </button>
-          <label>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
-          </label>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={clear}
-          >
-            Clear
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={undo}
-          >
-            Undo
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={redo}
-          >
-            Redo
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={removeSelectedObject}
-          >
-            Delete
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={onDeleteAll}
-          >
-            Erase All
-          </button>
-          <button
-            className="bg-gray-100 px-1.5 text-sm rounded-md"
-            onClick={exportToJson}
-          >
-            Export Data
-          </button>
+          <div>
+            {/* project name */}
+            <div className="text-center">
+              <h1 className="text-2xl pb-2 uppercase font-semibold">
+                Whiteboard App
+              </h1>
+              <label>Project Name:</label>{" "}
+              <input
+                type="text"
+                className="border w-56 px-0.5 mr-2"
+                value={selectedCanvas?.title}
+              />
+              <button className="bg-green-500 text-white p-1.5 text-sm rounded-md  mr-2">
+                New Project
+              </button>
+              <button className="bg-red-500 text-white p-1.5 text-sm rounded-md">
+                Delete Selected Project
+              </button>
+            </div>
+            {/* action button */}
+            <div>
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={onAddLine}
+              >
+                Add Line
+              </button>
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={onAddText}
+              >
+                Add Text
+              </button>
+
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={onAddCircle}
+              >
+                Add Circle
+              </button>
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={onAddRectangle}
+              >
+                Add Rectangle
+              </button>
+              <label>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                />
+              </label>
+
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={handleFillColorChange}
+              >
+                Fill Selected Object
+              </button>
+
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={removeSelectedObject}
+              >
+                Erase
+              </button>
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={onEraseAll}
+              >
+                Erase All
+              </button>
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={exportToJson}
+              >
+                Export Data
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="grid grid-cols-12  w-full ">
+      <div className="grid grid-cols-12  w-full gap-1">
         <div className="col-span-2">
+          <h3 className="text-center border border-r-0 border-l-0 font-semibold text-sm bg-yellow-500 text-white">
+            Project List
+          </h3>
           <ul>
             <li>Bangladesh</li>
             <li>Bangladesh</li>
@@ -249,7 +249,7 @@ const Whiteboard = () => {
           </ul>
         </div>
         <div className="col-span-10">
-          <FabricJSCanvas className="border h-[450px]" onReady={onReady} />
+          <FabricJSCanvas className="border " onReady={onReady} />
         </div>
       </div>
     </div>

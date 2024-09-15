@@ -2,9 +2,24 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../utils/axios/axios";
 import { fabric } from "fabric";
 import { FabricJSCanvas, useFabricJSEditor } from "fabricjs-react";
+import { useLoader } from "../context/loaderContext";
+import {
+  createWhiteboardRequest,
+  getAllWhiteboardRequest,
+  updateWhiteboardRequest,
+} from "../APIRequest/whiteboardApi";
+import generate3DigitRandomNumber from "../utils/generate3digitNumber/generate3digitNumber";
+import {
+  exportAsPNG,
+  exportAsSVG,
+} from "../utils/exportWhiteboardAsImg/exportWhiteboardAsImg";
 
 const Whiteboard = () => {
-  const [listCanvas, setListCanvas] = useState([]);
+  const { showLoader, hideLoader } = useLoader();
+  const [listCanvas, setListCanvas] = useState({
+    total: 0,
+    rows: [],
+  });
   const [selectedCanvas, setSelectedCanvas] = useState(null);
   const { editor, onReady } = useFabricJSEditor();
   const [color, setColor] = useState("#35363a");
@@ -43,18 +58,57 @@ const Whiteboard = () => {
   const handleFillColorChange = () => {
     const activeObject = editor.canvas.getActiveObject(); // Get the selected object
     if (activeObject) {
-      activeObject.set({ fill: color }); // Update the fill color
+      activeObject.set("fill", color); // Update the fill color
       editor.canvas.renderAll(); // Re-render the canvas
     } else {
       alert("Please select an object to fill");
     }
   };
 
-  const exportToJson = () => {
-    if (editor) {
-      const jsonData = editor.canvas.toJSON();
-      console.log(jsonData);
-      // Save or process the JSON data as needed
+  // handle project title change
+  const handleProjectTitleChange = (e) => {
+    const updateCanvas = {
+      ...selectedCanvas,
+      title: e.target.value,
+    };
+    setSelectedCanvas(updateCanvas);
+
+    const updatedList = listCanvas?.rows?.map((canvas) =>
+      canvas._id === selectedCanvas?._id ? updateCanvas : canvas
+    );
+
+    setListCanvas({ total: listCanvas.total, rows: updatedList });
+  };
+
+  // export as PNG image
+  const handleExportPNG = () => {
+    if (editor?.canvas) {
+      exportAsPNG(editor.canvas);
+    }
+  };
+  // export as SVG image
+  const handleExportSVG = () => {
+    if (editor?.canvas) {
+      exportAsSVG(editor.canvas);
+    }
+  };
+
+  // Create new canvas and save it in the database
+  const createNewCanvas = async () => {
+    // Clear the current canvas
+    editor.canvas.clear();
+
+    const title = "New Drawing " + generate3DigitRandomNumber();
+    // Save the new canvas in the database
+    const newCanvas = await createWhiteboardRequest(title, []);
+
+    if (newCanvas && newCanvas._id) {
+      setSelectedCanvas(newCanvas);
+      setListCanvas((prevList) => {
+        const updateRows = [...prevList.rows, newCanvas];
+        const updateTotal = prevList.total + 1;
+        return { total: updateTotal, rows: updateRows };
+      });
     }
   };
 
@@ -137,17 +191,77 @@ const Whiteboard = () => {
   // Fetch the list of canvas from the database and set the selected canvas
   useEffect(() => {
     (async () => {
-      try {
-        const response = await axiosInstance.get("/get-all-drawing/1/100/0");
-        setListCanvas(response?.data?.data);
-        if (response?.data?.data[0]?.total?.[0].count > 0) {
-          setSelectedCanvas(response?.data?.data[0]?.rows[0]);
-        }
-      } catch (error) {
-        console.error("Error fetching canvas data", error);
+      showLoader();
+      const data = await getAllWhiteboardRequest(`1`, `100`, `0`);
+      hideLoader();
+      setListCanvas({
+        total: data?.total[0].count || 0,
+        rows: data?.rows || [],
+      });
+      if (data?.rows[0]?.objects) {
+        setSelectedCanvas(data.rows[0]);
       }
     })();
   }, []);
+
+  // real time and page unload or tab close to save drawing data into database
+  useEffect(() => {
+    if (!editor || !editor.canvas) {
+      return;
+    }
+    // Function to save drawing data
+    const saveDrawingData = async () => {
+      const jsonData = editor.canvas.toJSON();
+      const title =
+        selectedCanvas?.title ||
+        "Untitled Drawing " + generate3DigitRandomNumber();
+      const objects = jsonData.objects;
+
+      if (!selectedCanvas?._id) {
+        const newDrawing = await createWhiteboardRequest(title, objects);
+        console.log(newDrawing._id, "new");
+        // Check if new drawing creation was successful and save its _id
+        if (newDrawing && newDrawing._id) {
+          setSelectedCanvas({
+            ...selectedCanvas,
+            _id: newDrawing._id,
+          });
+        }
+      } else {
+        // If _id exists, update the existing drawing
+        await updateWhiteboardRequest(selectedCanvas?._id, title, objects);
+      }
+    };
+
+    // Save on specific events
+    const handleObjectModified = () => {
+      saveDrawingData();
+    };
+
+    editor.canvas.on("object:modified", handleObjectModified);
+    editor.canvas.on("object:added", handleObjectModified);
+    editor.canvas.on("object:removed", handleObjectModified);
+
+    // Save on page unload
+    const handleBeforeUnload = (event) => {
+      // Preventing default behavior and saving data
+      event.preventDefault();
+      saveDrawingData();
+      event.returnValue = "Are you sure you want to leave?";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup event listeners on component unmount
+    return () => {
+      editor.canvas.off("object:modified", handleObjectModified);
+      editor.canvas.off("object:added", handleObjectModified);
+      editor.canvas.off("object:removed", handleObjectModified);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [editor, selectedCanvas]);
+
+  console.log(listCanvas, "list canvas");
 
   return (
     <div className="container mx-auto py-2">
@@ -164,9 +278,13 @@ const Whiteboard = () => {
               <input
                 type="text"
                 className="border w-56 px-0.5 mr-2"
-                value={selectedCanvas?.title}
+                value={selectedCanvas?.title || ""}
+                onChange={handleProjectTitleChange}
               />
-              <button className="bg-green-500 text-white p-1.5 text-sm rounded-md  mr-2">
+              <button
+                onClick={createNewCanvas}
+                className="bg-green-500 text-white p-1.5 text-sm rounded-md  mr-2"
+              >
                 New Project
               </button>
               <button className="bg-red-500 text-white p-1.5 text-sm rounded-md">
@@ -227,11 +345,18 @@ const Whiteboard = () => {
               >
                 Erase All
               </button>
+
               <button
                 className="bg-gray-100 px-1.5 text-sm rounded-md"
-                onClick={exportToJson}
+                onClick={handleExportPNG}
               >
-                Export Data
+                Export PNG
+              </button>
+              <button
+                className="bg-gray-100 px-1.5 text-sm rounded-md"
+                onClick={handleExportSVG}
+              >
+                Export SVG
               </button>
             </div>
           </div>
@@ -239,13 +364,25 @@ const Whiteboard = () => {
       </div>
       <div className="grid grid-cols-12  w-full gap-1">
         <div className="col-span-2">
-          <h3 className="text-center border border-r-0 border-l-0 font-semibold text-sm bg-yellow-500 text-white">
+          <h3 className="text-center py-0.5 font-semibold text-sm bg-yellow-500 text-white">
             Project List
           </h3>
-          <ul>
-            <li>Bangladesh</li>
-            <li>Bangladesh</li>
-            <li>Bangladesh</li>
+          <ul className=" text-center ">
+            {listCanvas?.rows?.map((item, index) => {
+              return (
+                <li
+                  onClick={() => setSelectedCanvas(item)}
+                  key={index}
+                  className={`cursor-pointer text-sm border block my-0.5 ${
+                    selectedCanvas?._id === item?._id ? "bg-gray-200" : ""
+                  }`}
+                >
+                  {item?.title?.length > 30
+                    ? item?.title?.substring(0, 30) + "..."
+                    : item?.title}
+                </li>
+              );
+            })}
           </ul>
         </div>
         <div className="col-span-10">

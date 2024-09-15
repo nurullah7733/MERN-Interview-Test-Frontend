@@ -15,6 +15,7 @@ import {
   exportAsSVG,
 } from "../utils/exportWhiteboardAsImg/exportWhiteboardAsImg";
 import { randomSweetAlert } from "../utils/sweetAlert/sweetAlert";
+import Paginate from "./common/pagination/pagination";
 
 const Whiteboard = () => {
   const { showLoader, hideLoader } = useLoader();
@@ -23,6 +24,8 @@ const Whiteboard = () => {
     rows: [],
   });
   const [selectedCanvas, setSelectedCanvas] = useState(null);
+  // pagination manage state
+  const [pageNo, setPageNo] = useState(1);
   const { editor, onReady } = useFabricJSEditor();
   const [color, setColor] = useState("#35363a");
 
@@ -129,6 +132,11 @@ const Whiteboard = () => {
     }
   };
 
+  // pagination handle function
+  const onPageChange = (pageNumber) => {
+    setPageNo(pageNumber);
+  };
+  console.log(pageNo, "page");
   // Load the initial last drawing file from database & set the canvas height
   useEffect(() => {
     if (!editor) {
@@ -209,7 +217,7 @@ const Whiteboard = () => {
   useEffect(() => {
     (async () => {
       showLoader();
-      const data = await getAllWhiteboardRequest(`1`, `100`, `0`);
+      const data = await getAllWhiteboardRequest(`${pageNo}`, `10`, `0`);
       hideLoader();
       setListCanvas({
         total: data?.total[0].count || 0,
@@ -219,7 +227,7 @@ const Whiteboard = () => {
         setSelectedCanvas(data.rows[0]);
       }
     })();
-  }, []);
+  }, [pageNo]);
 
   // real time and page unload or tab close to save drawing data into database
   useEffect(() => {
@@ -384,23 +392,36 @@ const Whiteboard = () => {
           <h3 className="text-center py-0.5 font-semibold text-sm bg-yellow-500 text-white">
             Project List
           </h3>
-          <ul className=" text-center ">
-            {listCanvas?.rows?.map((item, index) => {
-              return (
-                <li
-                  onClick={() => setSelectedCanvas(item)}
-                  key={index}
-                  className={`cursor-pointer text-sm border block my-0.5 ${
-                    selectedCanvas?._id === item?._id ? "bg-gray-200" : ""
-                  }`}
-                >
-                  {item?.title?.length > 30
-                    ? item?.title?.substring(0, 30) + "..."
-                    : item?.title}
-                </li>
-              );
-            })}
-          </ul>
+          <div>
+            <ul className=" text-center ">
+              {listCanvas?.rows.length > 0 ? (
+                <>
+                  {listCanvas?.rows?.map((item, index) => {
+                    return (
+                      <li
+                        onClick={() => setSelectedCanvas(item)}
+                        key={index}
+                        className={`cursor-pointer text-sm border block my-0.5 ${
+                          selectedCanvas?._id === item?._id ? "bg-gray-200" : ""
+                        }`}
+                      >
+                        {item?.title?.length > 30
+                          ? item?.title?.substring(0, 30) + "..."
+                          : item?.title}
+                      </li>
+                    );
+                  })}
+                </>
+              ) : (
+                <li>No Project Found</li>
+              )}
+            </ul>
+            <Paginate
+              total={listCanvas?.total}
+              perPage={10}
+              onPageChange={onPageChange}
+            />
+          </div>
         </div>
         <div className="col-span-10">
           <FabricJSCanvas className="border " onReady={onReady} />

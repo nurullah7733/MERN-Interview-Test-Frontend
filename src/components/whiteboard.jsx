@@ -76,11 +76,16 @@ const Whiteboard = () => {
 
   // handle project title change
   const handleProjectTitleChange = (e) => {
+    const canvasEditorJSONdData = editor?.canvas?.toJSON();
     const updateCanvas = {
       ...selectedCanvas,
       title: e.target.value,
+      objects: canvasEditorJSONdData,
     };
+
     setSelectedCanvas(updateCanvas);
+    console.log(selectedCanvas, "ls");
+    console.log(canvasEditorJSONdData, "canvasEditorJSONdData");
 
     const updatedList = listCanvas?.rows?.map((canvas) =>
       canvas._id === selectedCanvas?._id ? updateCanvas : canvas

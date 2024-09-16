@@ -13,7 +13,7 @@ const Paginate = ({ total, perPage, onPageChange }) => {
     <div className=" pt-7 flex items-center justify-center" id="paginate">
       <div>
         <ReactPaginate
-          renderOnZeroPageCount={0}
+          // renderOnZeroPageCount={0}
           breakLabel="..."
           nextLabel={`>`}
           containerClassName="flex gap-x-2"

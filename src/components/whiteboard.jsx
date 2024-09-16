@@ -220,10 +220,10 @@ const Whiteboard = () => {
       const data = await getAllWhiteboardRequest(`${pageNo}`, `10`, `0`);
       hideLoader();
       setListCanvas({
-        total: data?.total[0].count || 0,
+        total: data?.total?.[0].count || 0,
         rows: data?.rows || [],
       });
-      if (data?.rows[0]?.objects) {
+      if (data?.total?.[0].count > 0 && data?.rows[0]?.objects) {
         setSelectedCanvas(data.rows[0]);
       }
     })();

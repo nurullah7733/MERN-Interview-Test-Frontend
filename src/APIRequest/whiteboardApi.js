@@ -38,7 +38,7 @@ export const getAllWhiteboardRequest = async (
   try {
     let res = await axiosInstance.get(url);
     if (res.data.status === "success") {
-      if (res.data.data?.[0].total?.[0].count > 0) {
+      if (res.data.data?.[0].total?.length > 0) {
         return res.data.data[0];
       } else {
         successToast("No Project Found!");
@@ -51,7 +51,7 @@ export const getAllWhiteboardRequest = async (
       return [];
     }
   } catch (error) {
-    errorToast("Something went wrong. Please try again");
+    errorToast("Something went wrong. Please try again 1100");
     return [];
   }
 };

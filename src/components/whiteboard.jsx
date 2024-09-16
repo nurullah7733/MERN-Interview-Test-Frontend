@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axiosInstance from "../utils/axios/axios";
 import { fabric } from "fabric";
 import { FabricJSCanvas, useFabricJSEditor } from "fabricjs-react";
@@ -7,6 +7,7 @@ import {
   createWhiteboardRequest,
   deleteWhiteboardRequest,
   getAllWhiteboardRequest,
+  getSignleWhiteboardRequest,
   updateWhiteboardRequest,
 } from "../APIRequest/whiteboardApi";
 import generate3DigitRandomNumber from "../utils/generate3digitNumber/generate3digitNumber";
@@ -23,6 +24,7 @@ const Whiteboard = () => {
     total: 0,
     rows: [],
   });
+  const inputRef = useRef(null);
   const [selectedCanvas, setSelectedCanvas] = useState(null);
   // pagination manage state
   const [pageNo, setPageNo] = useState(1);
@@ -100,13 +102,15 @@ const Whiteboard = () => {
 
   // Create new canvas and save it in the database
   const createNewCanvas = async () => {
+    // input project titleref focus
+    inputRef.current.focus();
     // Clear the current canvas
     editor.canvas.clear();
-
     const title = "New Drawing " + generate3DigitRandomNumber();
     // Save the new canvas in the database
+    showLoader();
     const newCanvas = await createWhiteboardRequest(title, []);
-
+    hideLoader();
     if (newCanvas && newCanvas._id) {
       setSelectedCanvas(newCanvas);
       setListCanvas((prevList) => {
@@ -115,6 +119,14 @@ const Whiteboard = () => {
         return { total: updateTotal, rows: updateRows };
       });
     }
+  };
+
+  // handle selected canvas
+  const handleSelectedCanvas = async (canvas) => {
+    showLoader();
+    const canvasData = await getSignleWhiteboardRequest(canvas._id);
+    hideLoader();
+    setSelectedCanvas(canvasData);
   };
 
   // delete canvas from database
@@ -298,6 +310,7 @@ const Whiteboard = () => {
               <label>Project Name:</label>{" "}
               <input
                 autoFocus
+                ref={inputRef}
                 type="text"
                 className="border w-56 px-0.5 mr-2"
                 value={selectedCanvas?.title || ""}
@@ -399,7 +412,7 @@ const Whiteboard = () => {
                   {listCanvas?.rows?.map((item, index) => {
                     return (
                       <li
-                        onClick={() => setSelectedCanvas(item)}
+                        onClick={() => handleSelectedCanvas(item)}
                         key={index}
                         className={`cursor-pointer text-sm border block my-0.5 ${
                           selectedCanvas?._id === item?._id ? "bg-gray-200" : ""

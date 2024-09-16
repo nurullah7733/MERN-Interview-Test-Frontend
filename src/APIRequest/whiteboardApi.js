@@ -56,6 +56,29 @@ export const getAllWhiteboardRequest = async (
   }
 };
 
+export const getSignleWhiteboardRequest = async (id) => {
+  let url = `/get-single-drawing/${id}`;
+  try {
+    let res = await axiosInstance.get(url);
+    if (res.data.status === "success") {
+      if (res.data.data?.length > 0) {
+        return res.data.data[0];
+      } else {
+        successToast("No Project Found!");
+        return [];
+      }
+    } else if (res.data.status === "fail") {
+      return [];
+    } else {
+      errorToast("Request fail. Please try again");
+      return [];
+    }
+  } catch (error) {
+    errorToast("Something went wrong. Please try again 1100");
+    return [];
+  }
+};
+
 export const updateWhiteboardRequest = async (id, title, objects) => {
   let url = `/update-drawing/${id}`;
   let postBody = {

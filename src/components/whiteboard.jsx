@@ -26,6 +26,8 @@ const Whiteboard = () => {
   });
   const inputRef = useRef(null);
   const [selectedCanvas, setSelectedCanvas] = useState(null);
+  // its state for when call new project/canvas to restick update project/canvas
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
   // pagination manage state
   const [pageNo, setPageNo] = useState(1);
   const { editor, onReady } = useFabricJSEditor();
@@ -103,9 +105,9 @@ const Whiteboard = () => {
   // Create new canvas and save it in the database
   const createNewCanvas = async () => {
     // input project titleref focus
+    setIsCreatingNew(true); // Setting to true when creating a new canvas
+    setSelectedCanvas(null); // Reset selected canvas
     inputRef.current.focus();
-    // Clear the current canvas
-    editor.canvas.clear();
     const title = "New Drawing " + generate3DigitRandomNumber();
     // Save the new canvas in the database
     showLoader();
@@ -120,6 +122,15 @@ const Whiteboard = () => {
       });
     }
   };
+
+  // createNewCanvas then selectedCanvas null then editor.canvas.clear (other wise old selected canvas clear/blank canvas save in database)
+  useEffect(() => {
+    if (selectedCanvas == null && editor?.canvas) {
+      console.log("Selected canvas ID:", selectedCanvas);
+      setIsCreatingNew(false); // Allow saving again after the new canvas is set up
+      editor.canvas.clear();
+    }
+  }, [selectedCanvas]);
 
   // handle selected canvas
   const handleSelectedCanvas = async (canvas) => {
@@ -148,7 +159,7 @@ const Whiteboard = () => {
   const onPageChange = (pageNumber) => {
     setPageNo(pageNumber);
   };
-  console.log(pageNo, "page");
+
   // Load the initial last drawing file from database & set the canvas height
   useEffect(() => {
     if (!editor) {
@@ -243,11 +254,15 @@ const Whiteboard = () => {
 
   // real time and page unload or tab close to save drawing data into database
   useEffect(() => {
-    if (!editor || !editor.canvas) {
+    if (!editor || !editor.canvas || isCreatingNew) {
       return;
     }
     // Function to save drawing data
     const saveDrawingData = async () => {
+      if (isCreatingNew) {
+        console.log("New canvas creation in progress, skipping save.");
+        return; // If we are creating a new canvas, skip saving the existing one.
+      }
       const jsonData = editor.canvas.toJSON();
       const title =
         selectedCanvas?.title ||
@@ -265,6 +280,7 @@ const Whiteboard = () => {
         }
       } else {
         // If _id exists, update the existing drawing
+
         await updateWhiteboardRequest(selectedCanvas?._id, title, objects);
       }
     };
